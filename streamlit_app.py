@@ -61,6 +61,13 @@ if uploaded_file:
 
     processed_df = process_data(df, reference_prices)
 
+    # Count items without reference price
+    unverified_count = processed_df[processed_df["Verification Status"].str.contains("Belum diverifikasi")].shape[0]
+    total_count = processed_df.shape[0]
+
+    st.markdown(f"**{unverified_count} dari {total_count} item** tidak memiliki harga acuan dan tidak dianalisis untuk anomali.")
+
+
     st.subheader("Hasil Analisis Anggaran")
     st.info("Catatan: Item tanpa harga acuan akan ditandai sebagai *'Belum diverifikasi'* dan tidak diperiksa untuk anomali.")
     st.dataframe(processed_df, use_container_width=True)
