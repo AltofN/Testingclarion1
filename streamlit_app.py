@@ -16,6 +16,20 @@ reference_prices = {
     "Laptop": 10000000
 }
 
+st.markdown("#### Format File yang Diharapkan")
+st.write(
+    "Pastikan file Anda memiliki kolom-kolom berikut:"
+)
+st.code("Item Name, Quantity, Unit Price (Rp)", language="csv")
+st.caption("Contoh:")
+sample_df = pd.DataFrame({
+    "Item Name": ["Lem Aibon", "Pensil"],
+    "Quantity": [1, 100],
+    "Unit Price (Rp)": [82000, 2000]
+})
+st.dataframe(sample_df)
+
+
 # Upload file (simulation only accepts CSV/Excel for now)
 uploaded_file = st.file_uploader("Upload RAPBD File (.xlsx, .csv)", type=["csv", "xlsx"])
 
