@@ -20,9 +20,29 @@ reference_prices = {
 uploaded_file = st.file_uploader("Upload RAPBD File (.xlsx, .csv)", type=["csv", "xlsx"])
 
 def process_data(df):
-    df["Ref Price (Rp)"] = df["Item Name"].map(reference_prices)
-    df["% Difference"] = ((df["Unit Price (Rp)"] - df["Ref Price (Rp)"]) / df["Ref Price (Rp)"]) * 100
-    df["Flag"] = np.where(df["% Difference"] > 50, "Flagged", "OK")
+    # Check if Ref Price exists in uploaded data
+    if "Ref Price (Rp)" not in df.columns:
+        df["Ref Price (Rp)"] = df["Item Name"].map(reference_prices)
+
+    # Detect missing reference price
+    df["Verification Status"] = df["Ref Price (Rp)"].apply(
+        lambda x: "Belum diverifikasi - harga acuan tidak tersedia" if pd.isna(x) else "Terverifikasi"
+    )
+
+    # Calculate difference only for verified items
+    df["% Difference"] = np.where(
+        df["Verification Status"] == "Terverifikasi",
+        ((df["Unit Price (Rp)"] - df["Ref Price (Rp)"]) / df["Ref Price (Rp)"]) * 100,
+        None
+    )
+
+    # Flag anomalies only for verified items
+    df["Flag"] = np.where(
+        df["Verification Status"] == "Terverifikasi",
+        np.where(df["% Difference"] > 50, "Flagged", "OK"),
+        "N/A"
+    )
+
     return df
 
 if uploaded_file:
@@ -51,4 +71,5 @@ else:
     })
     st.dataframe(sample_data)
 
+st.info("Catatan: Item yang tidak memiliki harga acuan akan ditandai sebagai *'Belum diverifikasi - harga acuan tidak tersedia'*. Hanya item yang diverifikasi yang diperiksa untuk anomali.")
 
