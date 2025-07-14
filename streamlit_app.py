@@ -2,26 +2,15 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Anggaran Cerdas MVP", layout="wide")
+st.set_page_config(page_title="Anggaran Cerdas", layout="wide")
 
 st.title("Anggaran Cerdas: Budget Anomaly Detector")
-st.markdown("Upload a RAPBD file and compare prices with reference values to detect anomalies.")
+st.markdown("Upload a RAPBD file dan bandingkan dengan harga acuan untuk mendeteksi anomali.")
 
-# Simulated reference price database
-reference_prices = {
-    "Lem Aibon": 5000,
-    "Pensil": 1800,
-    "Kertas A4": 1400,
-    "Kursi Kantor": 600000,
-    "Laptop": 10000000
-}
-
-st.markdown("#### Format File yang Diharapkan")
-st.write(
-    "Pastikan file Anda memiliki kolom-kolom berikut:"
-)
+# Format info and template example
+st.markdown("#### Format File RAPBD yang Diharapkan")
+st.write("Pastikan file Anda memiliki kolom berikut:")
 st.code("Item Name, Quantity, Unit Price (Rp)", language="csv")
-st.caption("Contoh:")
 sample_df = pd.DataFrame({
     "Item Name": ["Lem Aibon", "Pensil"],
     "Quantity": [1, 100],
@@ -29,61 +18,58 @@ sample_df = pd.DataFrame({
 })
 st.dataframe(sample_df)
 
+# Upload reference price file
+ref_file = st.file_uploader("Upload Reference Price File (.csv)", type=["csv"], key="ref")
 
-# Upload file (simulation only accepts CSV/Excel for now)
+if ref_file:
+    ref_df = pd.read_csv(ref_file)
+    reference_prices = dict(zip(ref_df["Item Name"], ref_df["Reference Price (Rp)"]))
+    st.success(f"Harga acuan berhasil dimuat. Jumlah item: {len(reference_prices)}")
+else:
+    st.warning("Harap unggah file harga acuan agar sistem dapat melakukan verifikasi dan deteksi anomali.")
+    reference_prices = {}
+
+# Upload budget file
 uploaded_file = st.file_uploader("Upload RAPBD File (.xlsx, .csv)", type=["csv", "xlsx"])
 
-def process_data(df):
-    # Check if Ref Price exists in uploaded data
-    if "Ref Price (Rp)" not in df.columns:
-        df["Ref Price (Rp)"] = df["Item Name"].map(reference_prices)
+# Process function
+def process_data(df, reference_prices):
+    df["Ref Price (Rp)"] = df["Item Name"].map(reference_prices)
 
-    # Detect missing reference price
     df["Verification Status"] = df["Ref Price (Rp)"].apply(
         lambda x: "Belum diverifikasi - harga acuan tidak tersedia" if pd.isna(x) else "Terverifikasi"
     )
 
-    # Calculate difference only for verified items
     df["% Difference"] = np.where(
         df["Verification Status"] == "Terverifikasi",
         ((df["Unit Price (Rp)"] - df["Ref Price (Rp)"]) / df["Ref Price (Rp)"]) * 100,
         None
     )
 
-    # Flag anomalies only for verified items
     df["Flag"] = np.where(
         df["Verification Status"] == "Terverifikasi",
         np.where(df["% Difference"] > 50, "Flagged", "OK"),
         "N/A"
     )
-
     return df
 
+# Main processing
 if uploaded_file:
     if uploaded_file.name.endswith("csv"):
         df = pd.read_csv(uploaded_file)
     else:
         df = pd.read_excel(uploaded_file)
 
-    st.subheader("Parsed Budget Data")
-    processed_df = process_data(df)
+    processed_df = process_data(df, reference_prices)
+
+    st.subheader("Hasil Analisis Anggaran")
+    st.info("Catatan: Item tanpa harga acuan akan ditandai sebagai *'Belum diverifikasi'* dan tidak dianalisis untuk anomali.")
     st.dataframe(processed_df, use_container_width=True)
 
     flagged = processed_df[processed_df["Flag"] == "Flagged"]
-    st.markdown(f"### Flagged Anomalies ({len(flagged)} items)")
+    st.markdown(f"### Anomali Terdeteksi ({len(flagged)} item)")
     st.dataframe(flagged, use_container_width=True)
 
-    # Download
-    st.download_button("Download Result as CSV", processed_df.to_csv(index=False), file_name="anggaran_cerdas_output.csv", mime="text/csv")
-
+    st.download_button("Download Hasil sebagai CSV", processed_df.to_csv(index=False), file_name="hasil_anggaran_cerdas.csv", mime="text/csv")
 else:
-    st.info("Upload a file to get started. You can also use the following sample format:")
-    sample_data = pd.DataFrame({
-        "Item Name": ["Lem Aibon", "Pensil", "Kertas A4", "Kursi Kantor", "Laptop"],
-        "Quantity": [1, 100, 50, 10, 5],
-        "Unit Price (Rp)": [82000, 2000, 1500, 750000, 12000000]
-    })
-    st.dataframe(sample_data)
-
-st.info("Catatan: Item yang tidak memiliki harga acuan akan ditandai sebagai *'Belum diverifikasi - harga acuan tidak tersedia'*. Hanya item yang diverifikasi yang diperiksa untuk anomali.")
-
+    st.info("Silakan unggah file RAPBD untuk memulai.")
